@@ -39,30 +39,30 @@ successors :: String -> Dynasty -> [String]
 successors name dynasty = aliveafter name (linefrom dynasty)
 
 -- define the catamorphism cataD on Dynasty
+cataD :: (Person -> [b] -> b) -> (Person -> b) -> Dynasty -> b
 cataD ns es (Dull p) = es p
-cataD ns es (Descend p dys) = ns p (map (\d -> cataD ns es d) (sortds dys))
+cataD ns es (Descend p dys) = ns p (map (\dy -> cataD ns es dy) dys)
 
 -- then reimplement linefrom to use cataD instead of explicit
 -- recursion and the new version of reorder below
 linefrom :: Dynasty -> [Person]
-linefrom dy = cataD nss ess dy
-
---  non-empty server for linefrom
-nss p rs = 
-    case p of
-        (Person _ Abdicated _) -> []
-        _ -> p:concat rs
-
--- empty server for linefrom
-ess p = 
-    case p of
-        (Person _ Abdicated _) -> []
-        _ -> [p]
+linefrom dy = cataD nss ess (reorder dy)
+                        where
+                        --  non-empty server for linefrom
+                        nss p rs = 
+                            case p of
+                                (Person _ Abdicated _) -> []
+                                _ -> p:concat rs
+                        -- empty server for linefrom
+                        ess p = 
+                            case p of
+                                (Person _ Abdicated _) -> []
+                                _ -> [p]
 
 -- redefine reorder so that all sub-dynasties are sorted
 -- with Males before Females, using cataD
 reorder :: Dynasty -> Dynasty
-reorder dy = cataD (\p rs->Descend p rs) (\p -> Dull p) dy
+reorder dy = cataD (\p rs->Descend p (sortds rs)) (\p -> Dull p) dy
 
 -- reimplement sortds to use new insertd and flatten below
 sortds :: [Dynasty] -> [Dynasty]
@@ -74,6 +74,7 @@ sortds dys = flatten (foldr insertd Dnull dys)
 data BTD = Dnode BTD Dynasty BTD | Dnull
 
 -- define the catamorphism cataBTD on the above type
+cataBTD :: (t -> Dynasty -> t -> t) -> t -> BTD -> t
 cataBTD ns es Dnull = es
 cataBTD ns es (Dnode b1 dy b2) = ns (cataBTD ns es b1) dy (cataBTD ns es b2)
 
